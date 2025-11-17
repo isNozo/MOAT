@@ -89,7 +89,7 @@ class OverlayWindow(QWidget):
             if (self.relative_x >= textbox.x and self.relative_x <= textbox.x + textbox.w and
                 self.relative_y >= textbox.y and self.relative_y <= textbox.y + textbox.h):
                 text_bg = QtGui.QBrush(QtGui.QColor(255, 0, 0, 127))
-                QToolTip.showText(QCursor.pos(), self.translator.translate_text(f"{textbox.text}"))
+                QToolTip.showText(QCursor.pos(), self.translator.translate(f"{textbox.text}"))
             else:
                 text_bg = QtGui.QBrush(QtGui.QColor(0, 0, 0, 127))
             

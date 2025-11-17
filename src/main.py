@@ -4,12 +4,12 @@ from main_window import MainWindow
 from overlay_window import OverlayWindow
 from window_capture import CaptureThread
 from text_recognition import TextRecognizer
-from translator import Translator
+from translator import create_translator
 from helpers import get_window_titles
 
 sub_window = None
 capture_thread = None
-translator = Translator()
+translator = create_translator("argos")
 
 def open_sub_window():
     global sub_window
