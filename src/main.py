@@ -9,7 +9,7 @@ from helpers import get_window_titles
 
 sub_window = None
 capture_thread = None
-translator = create_translator("argos")
+translator = create_translator("ollama")
 
 def open_sub_window():
     global sub_window

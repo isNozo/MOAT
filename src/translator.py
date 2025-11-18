@@ -8,6 +8,8 @@ class Translator(ABC):
 def create_translator(kind: str) -> Translator:
     if kind == "argos":
         return ArgosTranslator()
+    elif kind == "ollama":
+        return OllamaTranslator()
     else:
         raise ValueError(f"Unknown translator type: {kind}")
 
@@ -32,3 +34,34 @@ class ArgosTranslator:
 
     def translate(self, text):
         return self._argos_translate(text, self.from_code, self.to_code)
+
+class OllamaTranslator(Translator):
+    def __init__(self, model: str = "llama3"):
+        import ollama
+
+        self.ollama = ollama
+        self.model = model
+
+        self.prompt_template = (
+            "以下の文章を日本語へ翻訳してください。"
+            "出力は翻訳結果のみを表示してください。\n\n"
+            "{content}"
+        )
+
+    def translate(self, text: str) -> str:
+        prompt = self.prompt_template.format(
+            content=text
+        )
+
+        response = self.ollama.chat(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": "You are a translation engine."},
+                {"role": "user", "content": prompt},
+            ],
+            options={
+                "temperature": 0.0,
+            }
+        )
+
+        return response["message"]["content"].strip()

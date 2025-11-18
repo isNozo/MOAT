@@ -1,6 +1,7 @@
 # Installation
 Requirements:
 - Python 3.12 (for argostranslate)
+- Ollama 0.12.11
 
 Run the following commands:
 ```
@@ -9,3 +10,8 @@ Run the following commands:
 ```
 
 Note: The paddlepaddle-gpu version must match your CUDA version. Please refer to the [official installation guide](https://www.paddlepaddle.org.cn/en/install/quick?docurl=/documentation/docs/en/develop/install/pip/windows-pip_en.html).
+
+```
+> ollama run llama3
+> python .\src\main.py
+```
