@@ -1,0 +1,133 @@
+from PySide6.QtWidgets import QWidget, QLabel
+from PySide6.QtGui import QPainter, QColor, QCursor
+from PySide6.QtCore import QPoint, Qt, Signal, Slot, QThread, QTimer
+
+class PopupOverlay(QWidget):
+    def __init__(self, get_text_rects, process_text):
+        super().__init__()
+
+        self.get_text_rects = get_text_rects
+        self.process_text = process_text
+
+        # Set a frameless, always-on-top transparent window
+        self.setWindowFlags(
+            Qt.Window | 
+            Qt.FramelessWindowHint | 
+            Qt.WindowStaysOnTopHint | 
+            Qt.Tool |
+            Qt.WindowTransparentForInput
+        )
+        self.setAttribute(Qt.WA_TranslucentBackground)
+        self.setAttribute(Qt.WA_ShowWithoutActivating)
+        self.setStyleSheet("background-color: rgba(0, 0, 0, 0);")
+        
+        # Set a timer to listen for mouse movements
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.mouseMove)
+        self.timer.start(1)
+
+        # Popup label
+        self.popup = QLabel("", self)
+        self.popup.setStyleSheet(
+            "background-color: yellow;"
+            "border: 1px solid black;"
+            "padding: 3px;"
+        )
+        self.popup.hide()
+        self.in_any_rect = False
+
+        # Current task ID (for thread management)
+        self.current_task_id = 0
+        self.thread_queue = []
+
+    def mouseMove(self):
+        # Calculate mouse position relative to the window
+        global_pos = QCursor.pos()
+        window_pos = self.geometry().topLeft()
+        reletive_pos = global_pos - window_pos
+
+        # Get text rectangles
+        rects = self.get_text_rects()
+
+        # If the mouse is inside any rectangle
+        for text, rect in rects:
+            if rect.contains(reletive_pos):
+                if not self.in_any_rect:
+                    self.in_any_rect = True
+                    self.startTextProcess(rect, text)
+                return
+
+        # If the mouse leaves the rectangle
+        self.in_any_rect = False
+        self.popup.hide()
+
+    def startTextProcess(self, rect, text):
+        # Show loading popup immediately
+        self.updatePopup(rect, "Loading...")
+
+        # Update task ID (ignore old results)
+        self.current_task_id += 1
+
+        # Start a separate thread for processing
+        thread = TextProcessWorker(text, self.current_task_id, self.process_text)
+        thread.finished.connect(self.onWorkerFinished)
+        thread.start()
+        self.thread_queue.append(thread)  # Keep a reference to the thread
+
+        self._pending_rect = rect  # Store rect for updating after processing
+
+    # Called when the thread finishes
+    @Slot(str, int)
+    def onWorkerFinished(self, result_text, task_id):
+        print(f"Worker finished for task_id: {task_id}")
+
+        self.thread_queue.pop(0)  # Release reference to the thread
+
+        # Ignore old task results
+        if task_id != self.current_task_id:
+            return
+        
+        # If not in any rectangle, do nothing
+        if self.in_any_rect is False:
+            return
+
+        # Update popup with the result
+        self.updatePopup(self._pending_rect, result_text)
+
+    def updatePopup(self, rect, text):
+        self.popup.setText(text)
+        self.popup.adjustSize()
+
+        # Calculate popup position
+        popup_pos = QPoint()
+        popup_pos.setX(rect.left() + (rect.width() - self.popup.width()) // 2)
+        popup_pos.setY(rect.top() - self.popup.height() - 5)
+
+        self.popup.move(popup_pos)
+        self.popup.show()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+
+        # Draw border around the overlay window
+        painter.setPen(QColor(0, 170, 255))
+        painter.drawRect(self.rect().adjusted(1, 1, -1, -1))
+
+        # Draw text rectangles
+        rects = self.get_text_rects()
+        for text, rect in rects:
+            painter.fillRect(rect, QColor(255, 0, 0, 100))
+
+class TextProcessWorker(QThread):
+    finished = Signal(str, int)
+
+    def __init__(self, text, task_id, process_text):
+        super().__init__()
+        self.text = text
+        self.task_id = task_id
+        self.process_text = process_text
+
+    def run(self):
+        print(f"Worker started for task_id: {self.task_id}")
+        result = self.process_text(self.text)
+        self.finished.emit(result, self.task_id)
