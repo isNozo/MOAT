@@ -25,7 +25,7 @@ class PopupOverlay(QWidget):
         
         # Set a timer to update the overlay window
         self.timer = QTimer()
-        self.timer.timeout.connect(self.update)
+        self.timer.timeout.connect(self.update_overlay)
         self.timer.start(1)
 
         # Popup label
@@ -42,7 +42,7 @@ class PopupOverlay(QWidget):
         self.current_task_id = 0
         self.thread_queue = []
 
-    def update(self):
+    def update_overlay(self):
         # Update overlay window position
         rect = self.get_window_rect(self.target_title)
         if rect:
@@ -67,6 +67,8 @@ class PopupOverlay(QWidget):
         # If the mouse leaves the rectangle
         self.in_any_rect = False
         self.popup.hide()
+
+        self.update()
 
     def startTextProcess(self, rect, text):
         # Show loading popup immediately

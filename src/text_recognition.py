@@ -12,7 +12,9 @@ class TextBox:
     h: int
 
 class TextRecognizer:
-    def __init__(self, lang='en'):
+    def __init__(self):
+        self.results = []
+
         self.ocr = PaddleOCR(
             text_detection_model_name="PP-OCRv5_mobile_det",
             text_recognition_model_name="PP-OCRv5_mobile_rec",
@@ -45,10 +47,11 @@ class TextRecognizer:
             if not result:
                 return None
             else:
-                return TextRecognizer.zip_with(TextRecognizer.toTextBox,
+                self.results = TextRecognizer.zip_with(TextRecognizer.toTextBox,
                                                list(chain.from_iterable(result[0]["text_word"])),
                                                list(chain.from_iterable(result[0]["text_word_boxes"]))
                                                )
+                return self.results
         except Exception as e:
             print(f"Failed to process image: {e}")
             return None
