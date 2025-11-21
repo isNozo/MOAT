@@ -3,11 +3,13 @@ from PySide6.QtGui import QPainter, QColor, QCursor
 from PySide6.QtCore import QPoint, Qt, Signal, Slot, QThread, QTimer
 
 class PopupOverlay(QWidget):
-    def __init__(self, get_text_rects, process_text):
+    def __init__(self, target_title, get_text_rects, process_text, get_window_rect):
         super().__init__()
 
+        self.target_title = target_title
         self.get_text_rects = get_text_rects
         self.process_text = process_text
+        self.get_window_rect = get_window_rect
 
         # Set a frameless, always-on-top transparent window
         self.setWindowFlags(
@@ -21,9 +23,9 @@ class PopupOverlay(QWidget):
         self.setAttribute(Qt.WA_ShowWithoutActivating)
         self.setStyleSheet("background-color: rgba(0, 0, 0, 0);")
         
-        # Set a timer to listen for mouse movements
+        # Set a timer to update the overlay window
         self.timer = QTimer()
-        self.timer.timeout.connect(self.mouseMove)
+        self.timer.timeout.connect(self.update)
         self.timer.start(1)
 
         # Popup label
@@ -40,7 +42,12 @@ class PopupOverlay(QWidget):
         self.current_task_id = 0
         self.thread_queue = []
 
-    def mouseMove(self):
+    def update(self):
+        # Update overlay window position
+        rect = self.get_window_rect(self.target_title)
+        if rect:
+            self.setGeometry(*rect)
+
         # Calculate mouse position relative to the window
         global_pos = QCursor.pos()
         window_pos = self.geometry().topLeft()
