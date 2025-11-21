@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import QWidget, QLabel
 from PySide6.QtGui import QPainter, QColor, QCursor
-from PySide6.QtCore import QPoint, Qt, Signal, Slot, QThread, QTimer
+from PySide6.QtCore import QPoint, Qt, Signal, Slot, QRunnable, QTimer, QObject, QThreadPool
 
 class PopupOverlay(QWidget):
     def __init__(self, target_title, get_text_rects, process_text, get_window_rect):
@@ -40,7 +40,7 @@ class PopupOverlay(QWidget):
 
         # Current task ID (for thread management)
         self.current_task_id = 0
-        self.thread_queue = []
+        self.pool = QThreadPool()
 
     def update_overlay(self):
         # Update overlay window position
@@ -78,10 +78,9 @@ class PopupOverlay(QWidget):
         self.current_task_id += 1
 
         # Start a separate thread for processing
-        thread = TextProcessWorker(text, self.current_task_id, self.process_text)
-        thread.finished.connect(self.onWorkerFinished)
-        thread.start()
-        self.thread_queue.append(thread)  # Keep a reference to the thread
+        worker = TextProcessWorker(text, self.current_task_id, self.process_text)
+        worker.signals.finished.connect(self.onWorkerFinished)
+        self.pool.start(worker)
 
         self._pending_rect = rect  # Store rect for updating after processing
 
@@ -89,8 +88,6 @@ class PopupOverlay(QWidget):
     @Slot(str, int)
     def onWorkerFinished(self, result_text, task_id):
         print(f"Worker finished for task_id: {task_id}")
-
-        self.thread_queue.pop(0)  # Release reference to the thread
 
         # Ignore old task results
         if task_id != self.current_task_id:
@@ -127,16 +124,18 @@ class PopupOverlay(QWidget):
         for text, rect in rects:
             painter.fillRect(rect, QColor(255, 0, 0, 100))
 
-class TextProcessWorker(QThread):
-    finished = Signal(str, int)
-
+class TextProcessWorker(QRunnable):
     def __init__(self, text, task_id, process_text):
         super().__init__()
         self.text = text
         self.task_id = task_id
         self.process_text = process_text
+        self.signals = WorkerSignals()
 
     def run(self):
         print(f"Worker started for task_id: {self.task_id}")
         result = self.process_text(self.text)
-        self.finished.emit(result, self.task_id)
+        self.signals.finished.emit(result, self.task_id)
+
+class WorkerSignals(QObject):
+    finished = Signal(str, int)

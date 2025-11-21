@@ -5,7 +5,6 @@ import time
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QRect
 from ..popup_overlay import PopupOverlay
-from ..helpers import get_window_titles, get_window_rect
 
 def get_text_rects():
     rect_list = []
@@ -22,24 +21,18 @@ def get_text_rects():
     return rect_list
 
 def process_text(text):
-    time.sleep(0.5)
-    return f"[Processed] {text}"
+    random.seed(None)
+    sleep_time = random.uniform(0.1, 0.5)
+    time.sleep(sleep_time)
+    return f"[Processed] {text}, took {sleep_time:.2f}s"
 
+def get_window_rect(title):
+    return (500, 500, 500, 400)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
 
-    # List available window titles
-    window_titles = get_window_titles()
-    print("Available window titles:")
-    for i, title in enumerate(window_titles):
-        print(f"{i}: {title}")
-    
-    # Select a window to capture
-    selected_index = int(input("Enter the number of the window to capture: "))
-    selected_window = window_titles[selected_index]
-
-    w = PopupOverlay(selected_window, get_text_rects, process_text, get_window_rect)
+    w = PopupOverlay("dummy", get_text_rects, process_text, get_window_rect)
     w.show()
 
     signal.signal(signal.SIGINT, signal.SIG_DFL)
