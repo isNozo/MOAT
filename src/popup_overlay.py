@@ -10,6 +10,7 @@ class PopupOverlay(QWidget):
         self.get_text_rects = get_text_rects
         self.process_text = process_text
         self.get_window_rect = get_window_rect
+        self.enable_drawing_rect = False
 
         # Set a frameless, always-on-top transparent window
         self.setWindowFlags(
@@ -37,6 +38,7 @@ class PopupOverlay(QWidget):
         )
         self.popup.hide()
         self.in_any_rect = False
+        self.current_text_rect = None
 
         # Current task ID (for thread management)
         self.current_task_id = 0
@@ -54,18 +56,23 @@ class PopupOverlay(QWidget):
         reletive_pos = global_pos - window_pos
 
         # Get text rectangles
-        rects = self.get_text_rects()
+        if self.in_any_rect:
+            rects = [self.current_text_rect]
+        else:
+            rects = self.get_text_rects()
 
         # If the mouse is inside any rectangle
         for text, rect in rects:
             if rect.contains(reletive_pos):
                 if not self.in_any_rect:
                     self.in_any_rect = True
+                    self.current_text_rect = (text, rect)
                     self.startTextProcess(rect, text)
                 return
 
         # If the mouse leaves the rectangle
         self.in_any_rect = False
+        self.current_text_rect = None
         self.popup.hide()
 
         self.update()
@@ -87,8 +94,6 @@ class PopupOverlay(QWidget):
     # Called when the thread finishes
     @Slot(str, int)
     def onWorkerFinished(self, result_text, task_id):
-        print(f"Worker finished for task_id: {task_id}")
-
         # Ignore old task results
         if task_id != self.current_task_id:
             return
@@ -120,9 +125,10 @@ class PopupOverlay(QWidget):
         painter.drawRect(self.rect().adjusted(1, 1, -1, -1))
 
         # Draw text rectangles
-        rects = self.get_text_rects()
-        for text, rect in rects:
-            painter.fillRect(rect, QColor(255, 0, 0, 100))
+        if self.enable_drawing_rect:
+            rects = self.get_text_rects()
+            for text, rect in rects:
+                painter.fillRect(rect, QColor(255, 0, 0, 100))
 
 class TextProcessWorker(QRunnable):
     def __init__(self, text, task_id, process_text):
@@ -133,7 +139,6 @@ class TextProcessWorker(QRunnable):
         self.signals = WorkerSignals()
 
     def run(self):
-        print(f"Worker started for task_id: {self.task_id}")
         result = self.process_text(self.text)
         self.signals.finished.emit(result, self.task_id)
 

@@ -10,7 +10,7 @@ def get_text_rects():
     rect_list = []
     random.seed(0)
     
-    for i in range(6):
+    for i in range(8):
         x = random.randint(20, 400)
         y = random.randint(20, 300)
         w = random.randint(40, 120)
@@ -33,6 +33,7 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
 
     w = PopupOverlay("dummy", get_text_rects, process_text, get_window_rect)
+    w.enable_drawing_rect = True
     w.show()
 
     signal.signal(signal.SIGINT, signal.SIG_DFL)
