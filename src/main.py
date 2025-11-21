@@ -2,7 +2,6 @@ import sys
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QRect
 from main_window import MainWindow
-from overlay_window import OverlayWindow
 from popup_overlay import PopupOverlay
 from window_capture import CaptureThread
 from text_recognition import TextRecognizer
