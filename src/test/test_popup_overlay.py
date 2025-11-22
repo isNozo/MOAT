@@ -3,11 +3,19 @@ import signal
 import random
 import time
 from PySide6.QtWidgets import QApplication
-from PySide6.QtCore import QRect
 from ..popup_overlay import PopupOverlay
+from dataclasses import dataclass
 
-def get_text_rects():
-    rect_list = []
+@dataclass
+class TextBox:
+    text: str
+    x: int
+    y: int
+    w: int
+    h: int
+
+def get_text_lines():
+    line = []
     random.seed(0)
     
     for i in range(8):
@@ -16,15 +24,15 @@ def get_text_rects():
         w = random.randint(40, 120)
         h = random.randint(30, 100)
         text = f"Rect {i}"
-        rect_list.append((text, QRect(x, y, w, h)))
+        line.append(TextBox(text, x, y, w, h))
 
-    return rect_list
+    return [line]
 
-def process_text(text):
+def process_text(word, full_text):
     random.seed(None)
     sleep_time = random.uniform(0.1, 0.5)
     time.sleep(sleep_time)
-    return f"[Processed] {text}, took {sleep_time:.2f}s"
+    return f"[Processed] {word}, took {sleep_time:.2f}s"
 
 def get_window_rect(title):
     return (500, 500, 500, 400)
@@ -32,7 +40,7 @@ def get_window_rect(title):
 if __name__ == "__main__":
     app = QApplication(sys.argv)
 
-    w = PopupOverlay("dummy", get_text_rects, process_text, get_window_rect)
+    w = PopupOverlay("dummy", get_text_lines, process_text, get_window_rect)
     w.enable_drawing_rect = True
     w.show()
 

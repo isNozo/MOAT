@@ -36,27 +36,29 @@ class ArgosTranslator:
         return self._argos_translate(text, self.from_code, self.to_code)
 
 class OllamaTranslator(Translator):
-    def __init__(self, model: str = "llama3"):
+    def __init__(self, model: str = "gemma3:12b"):
         import ollama
 
         self.ollama = ollama
         self.model = model
 
         self.prompt_template = (
-            "以下の文章を日本語へ翻訳してください。"
-            "出力は翻訳結果のみを表示してください。\n\n"
-            "{content}"
+            "[{word}]というテキストの意味を推論し、次の形式で回答してください。形式以外の文字は出力しないでください。\n"
+            "{word}:<意味>\n\n"
+            "ちなみに、[{word}]は文章全体の中で以下のように使われています。\n"
+            "{full_text}"
         )
 
-    def translate(self, text: str) -> str:
+    def translate(self, word: str, full_text: str) -> str:
         prompt = self.prompt_template.format(
-            content=text
+            word=word,
+            full_text=full_text
         )
 
         response = self.ollama.chat(
             model=self.model,
             messages=[
-                {"role": "system", "content": "You are a translation engine."},
+                {"role": "system", "content": "あなたは翻訳エンジンです。"},
                 {"role": "user", "content": prompt},
             ],
             options={

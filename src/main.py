@@ -1,6 +1,5 @@
 import sys
 from PySide6.QtWidgets import QApplication
-from PySide6.QtCore import QRect
 from main_window import MainWindow
 from popup_overlay import PopupOverlay
 from window_capture import CaptureThread
@@ -34,8 +33,7 @@ def close_sub_window():
         sub_window = None
 
 def get_text_rects():
-    res = ocr.results
-    return [(text_box.text, QRect(text_box.x, text_box.y, text_box.w, text_box.h)) for text_box in res]
+    return ocr.results
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

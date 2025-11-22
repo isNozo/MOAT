@@ -1,7 +1,5 @@
 from paddleocr import PaddleOCR, TextDetection
 from dataclasses import dataclass
-from itertools import chain
-import re
 
 @dataclass
 class TextBox:
@@ -47,10 +45,16 @@ class TextRecognizer:
             if not result:
                 return None
             else:
-                self.results = TextRecognizer.zip_with(TextRecognizer.toTextBox,
-                                               list(chain.from_iterable(result[0]["text_word"])),
-                                               list(chain.from_iterable(result[0]["text_word_boxes"]))
-                                               )
+                wordss = result[0]["text_word"]
+                boxess = result[0]["text_word_boxes"]
+
+                lines = []
+                for texts, boxes in zip(wordss, boxess):
+                    line = TextRecognizer.zip_with(TextRecognizer.toTextBox, texts, boxes)
+                    lines.append(line)
+
+                self.results = lines
+
                 return self.results
         except Exception as e:
             print(f"Failed to process image: {e}")

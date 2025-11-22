@@ -1,13 +1,13 @@
 from PySide6.QtWidgets import QWidget, QLabel
 from PySide6.QtGui import QPainter, QColor, QCursor
-from PySide6.QtCore import QPoint, Qt, Signal, Slot, QRunnable, QTimer, QObject, QThreadPool
+from PySide6.QtCore import QPoint, Qt, Signal, Slot, QRunnable, QTimer, QObject, QThreadPool, QRect
 
 class PopupOverlay(QWidget):
-    def __init__(self, target_title, get_text_rects, process_text, get_window_rect):
+    def __init__(self, target_title, get_text_lines, process_text, get_window_rect):
         super().__init__()
 
         self.target_title = target_title
-        self.get_text_rects = get_text_rects
+        self.get_text_lines = get_text_lines
         self.process_text = process_text
         self.get_window_rect = get_window_rect
         self.enable_drawing_rect = False
@@ -38,7 +38,7 @@ class PopupOverlay(QWidget):
         )
         self.popup.hide()
         self.in_any_rect = False
-        self.current_text_rect = None
+        self.current_textbox = None
 
         # Current task ID (for thread management)
         self.current_task_id = 0
@@ -57,27 +57,37 @@ class PopupOverlay(QWidget):
 
         # Get text rectangles
         if self.in_any_rect:
-            rects = [self.current_text_rect]
+            lines = [[self.current_textbox]]
         else:
-            rects = self.get_text_rects()
+            lines = self.get_text_lines()
 
         # If the mouse is inside any rectangle
-        for text, rect in rects:
-            if rect.contains(reletive_pos):
-                if not self.in_any_rect:
-                    self.in_any_rect = True
-                    self.current_text_rect = (text, rect)
-                    self.startTextProcess(rect, text)
-                return
+        for line in lines:
+            for textbox in line:
+                word = textbox.text
+                rect = QRect(textbox.x, textbox.y, textbox.w, textbox.h)
+
+                if rect.contains(reletive_pos):
+                    if not self.in_any_rect:
+                        self.in_any_rect = True
+                        self.current_textbox = textbox
+
+                        # Concatenate all texts in the line
+                        full_line_text = ""
+                        for tb in line:
+                            full_line_text += tb.text
+
+                        self.startTextProcess(rect, word, full_line_text)
+                    return
 
         # If the mouse leaves the rectangle
         self.in_any_rect = False
-        self.current_text_rect = None
+        self.current_textbox = None
         self.popup.hide()
 
         self.update()
 
-    def startTextProcess(self, rect, text):
+    def startTextProcess(self, rect, word, full_text):
         # Show loading popup immediately
         self.updatePopup(rect, "Loading...")
 
@@ -85,7 +95,7 @@ class PopupOverlay(QWidget):
         self.current_task_id += 1
 
         # Start a separate thread for processing
-        worker = TextProcessWorker(text, self.current_task_id, self.process_text)
+        worker = TextProcessWorker(word, full_text, self.current_task_id, self.process_text)
         worker.signals.finished.connect(self.onWorkerFinished)
         self.pool.start(worker)
 
@@ -126,20 +136,23 @@ class PopupOverlay(QWidget):
 
         # Draw text rectangles
         if self.enable_drawing_rect:
-            rects = self.get_text_rects()
-            for text, rect in rects:
-                painter.fillRect(rect, QColor(255, 0, 0, 100))
+            lines = self.get_text_lines()
+            for line in lines:
+                for textbox in line:
+                    rect = QRect(textbox.x, textbox.y, textbox.w, textbox.h)
+                    painter.fillRect(rect, QColor(255, 0, 0, 100))
 
 class TextProcessWorker(QRunnable):
-    def __init__(self, text, task_id, process_text):
+    def __init__(self, word, full_text, task_id, process_text):
         super().__init__()
-        self.text = text
+        self.word = word
+        self.full_text = full_text
         self.task_id = task_id
         self.process_text = process_text
         self.signals = WorkerSignals()
 
     def run(self):
-        result = self.process_text(self.text)
+        result = self.process_text(self.word, self.full_text)
         self.signals.finished.emit(result, self.task_id)
 
 class WorkerSignals(QObject):
