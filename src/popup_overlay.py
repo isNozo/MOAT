@@ -45,10 +45,17 @@ class PopupOverlay(QWidget):
         self.pool = QThreadPool()
 
     def update_overlay(self):
+        # Get device pixel ratio
+        dpr = self.screen().devicePixelRatio()
+
         # Update overlay window position
-        rect = self.get_window_rect(self.target_title)
-        if rect:
-            self.setGeometry(*rect)
+        window_rect = self.get_window_rect(self.target_title)
+        if window_rect:
+            window_x = int(window_rect[0] / dpr)
+            window_y = int(window_rect[1] / dpr)
+            window_w = int(window_rect[2] / dpr)
+            window_h = int(window_rect[3] / dpr)
+            self.setGeometry(window_x, window_y, window_w, window_h)
 
         # Calculate mouse position relative to the window
         global_pos = QCursor.pos()
@@ -65,9 +72,9 @@ class PopupOverlay(QWidget):
         for line in lines:
             for textbox in line:
                 word = textbox.text
-                rect = QRect(textbox.x, textbox.y, textbox.w, textbox.h)
+                word_rect = QRect(textbox.x/dpr, textbox.y/dpr, textbox.w/dpr, textbox.h/dpr)
 
-                if rect.contains(reletive_pos):
+                if word_rect.contains(reletive_pos):
                     if not self.in_any_rect:
                         self.in_any_rect = True
                         self.current_textbox = textbox
@@ -77,7 +84,7 @@ class PopupOverlay(QWidget):
                         for tb in line:
                             full_line_text += tb.text
 
-                        self.startTextProcess(rect, word, full_line_text)
+                        self.startTextProcess(word_rect, word, full_line_text)
                     return
 
         # If the mouse leaves the rectangle
@@ -128,6 +135,9 @@ class PopupOverlay(QWidget):
         self.popup.show()
 
     def paintEvent(self, event):
+        # Get device pixel ratio
+        dpr = self.screen().devicePixelRatio()
+
         painter = QPainter(self)
 
         # Draw border around the overlay window
@@ -139,7 +149,7 @@ class PopupOverlay(QWidget):
             lines = self.get_text_lines()
             for line in lines:
                 for textbox in line:
-                    rect = QRect(textbox.x, textbox.y, textbox.w, textbox.h)
+                    rect = QRect(textbox.x/dpr, textbox.y/dpr, textbox.w/dpr, textbox.h/dpr)
                     painter.fillRect(rect, QColor(255, 0, 0, 100))
 
 class TextProcessWorker(QRunnable):
