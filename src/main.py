@@ -7,41 +7,50 @@ from text_recognition import TextRecognizer
 from translator import create_translator
 from helpers import get_window_titles, get_window_rect
 
-ocr = TextRecognizer()
-sub_window = None
-capture_thread = None
-translator = create_translator("ollama")
-
-def open_sub_window():
-    global sub_window
-    global capture_thread
-
-    if sub_window is None:
-        sub_window = PopupOverlay(main_window.selected_window, get_text_rects, translator.translate, get_window_rect)
-        sub_window.show()
-        capture_thread = CaptureThread(main_window.selected_window, ocr.recognize_text)
-        capture_thread.start()
-
-def close_sub_window():
-    global sub_window
-    global capture_thread
-
-    if sub_window:
-        capture_thread.stop()
-        capture_thread = None
-        sub_window.close()
-        sub_window = None
-
-def get_text_rects():
-    return ocr.results
-
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+
+    ocr = TextRecognizer()
+    translator = create_translator("ollama")
+    overlay_window = None
+    capture_thread = None
 
     main_window = MainWindow(get_window_titles)
     main_window.show()
 
-    main_window.add_start_listener(open_sub_window)
-    main_window.add_stop_listener(close_sub_window)
+    def get_text_rects():
+        return ocr.results
+
+    def start():
+        global overlay_window
+        global capture_thread
+
+        if overlay_window is None:
+            overlay_window = PopupOverlay(
+                main_window.selected_window,
+                get_text_rects,
+                translator.translate,
+                get_window_rect
+                )
+            overlay_window.show()
+            
+            capture_thread = CaptureThread(
+                main_window.selected_window,
+                ocr.recognize_text
+                )
+            capture_thread.start()
+
+    def stop():
+        global overlay_window
+        global capture_thread
+        
+        if overlay_window:
+            capture_thread.stop()
+            capture_thread = None
+            overlay_window.close()
+            overlay_window = None
+
+    main_window.add_start_listener(start)
+    main_window.add_stop_listener(stop)
 
     sys.exit(app.exec())
