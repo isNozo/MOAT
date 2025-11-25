@@ -19,8 +19,8 @@ class OllamaTranslator(Translator):
         self.model = model
 
         self.prompt_template = (
-            "[{word}]というテキストの意味を推論し、次の形式で回答してください。形式以外の文字は出力しないでください。\n"
-            "{word}:<意味>\n\n"
+            "[{word}]という単語の意味を文脈から推論し、次の形式で回答してください。形式以外の文字は出力しないでください。\n"
+            "[{word}]: 単語の意味\n\n"
             "ちなみに、[{word}]は文章全体の中で以下のように使われています。\n"
             "{full_text}"
         )
