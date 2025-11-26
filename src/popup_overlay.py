@@ -1,6 +1,7 @@
 from PySide6.QtWidgets import QWidget, QLabel
 from PySide6.QtGui import QPainter, QColor, QCursor
 from PySide6.QtCore import QPoint, Qt, Signal, Slot, QRunnable, QTimer, QObject, QThreadPool, QRect
+import ctypes
 
 class PopupOverlay(QWidget):
     def __init__(self, target_title, get_text_lines, process_text, get_window_rect):
@@ -10,23 +11,34 @@ class PopupOverlay(QWidget):
         self.get_text_lines = get_text_lines
         self.process_text = process_text
         self.get_window_rect = get_window_rect
-        self.enable_drawing_rect = False
+
+        self.is_debug_mode = False
+        self.is_block_mode = False
+        self.prev_alt_state = False
+        self.prev_q_state = False
+        self.prev_d_state = False
+
+        self.in_any_rect = False
+        self.current_textbox = None
+
+        # Current task ID (for thread management)
+        self.current_task_id = 0
+        self.pool = QThreadPool()
 
         # Set a frameless, always-on-top transparent window
         self.setWindowFlags(
             Qt.Window | 
-            Qt.FramelessWindowHint | 
-            Qt.WindowStaysOnTopHint | 
-            Qt.Tool |
-            Qt.WindowTransparentForInput
+            Qt.FramelessWindowHint |        # No window border
+            Qt.WindowStaysOnTopHint |       # Always on top
+            Qt.Tool                         # No taskbar icon
         )
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setAttribute(Qt.WA_ShowWithoutActivating)
-        self.setStyleSheet("background-color: rgba(0, 0, 0, 0);")
         
         # Set a timer to update the overlay window
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_overlay)
+        self.timer.timeout.connect(self.check_key_state)
         self.timer.start(1)
 
         # Popup label
@@ -37,12 +49,6 @@ class PopupOverlay(QWidget):
             "padding: 3px;"
         )
         self.popup.hide()
-        self.in_any_rect = False
-        self.current_textbox = None
-
-        # Current task ID (for thread management)
-        self.current_task_id = 0
-        self.pool = QThreadPool()
 
     def update_overlay(self):
         # Get device pixel ratio
@@ -92,6 +98,29 @@ class PopupOverlay(QWidget):
         self.current_textbox = None
         self.popup.hide()
 
+        self.update()
+
+    def check_key_state(self):
+        Key_Alt = 0x12
+        Key_Q = 0x51
+        Key_D = 0x44
+
+        alt_pressed = ctypes.windll.user32.GetAsyncKeyState(Key_Alt) & 0x8000
+        q_pressed = ctypes.windll.user32.GetAsyncKeyState(Key_Q) & 0x8000
+        d_pressed = ctypes.windll.user32.GetAsyncKeyState(Key_D) & 0x8000
+
+        # Alt+Q to toggle block mode
+        if alt_pressed and q_pressed and not (self.prev_alt_state and self.prev_q_state):
+            self.is_block_mode = not self.is_block_mode
+        
+        # Alt+D to toggle debug mode
+        if alt_pressed and d_pressed and not (self.prev_alt_state and self.prev_d_state):
+            self.is_debug_mode = not self.is_debug_mode
+        
+        self.prev_alt_state = alt_pressed
+        self.prev_q_state = q_pressed
+        self.prev_d_state = d_pressed
+        
         self.update()
 
     def startTextProcess(self, rect, word, full_text):
@@ -144,8 +173,12 @@ class PopupOverlay(QWidget):
         painter.setPen(QColor(0, 170, 255))
         painter.drawRect(self.rect().adjusted(1, 1, -1, -1))
 
+        # Fill semi-transparent background in block mode
+        if self.is_block_mode:
+            painter.fillRect(self.rect(), QColor(0, 0, 0, 100))
+
         # Draw text rectangles
-        if self.enable_drawing_rect:
+        if self.is_debug_mode:
             lines = self.get_text_lines()
             for line in lines:
                 for textbox in line:
