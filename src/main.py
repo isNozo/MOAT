@@ -4,14 +4,14 @@ from main_window import MainWindow
 from popup_overlay import PopupOverlay
 from window_capture import CaptureThread
 from text_recognition import TextRecognizer
-from translator import create_translator
+from translator import TranslateWorkerManager
 from helpers import get_window_titles, get_window_rect
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
 
     ocr = TextRecognizer()
-    translator = create_translator("ollama")
+    translator = TranslateWorkerManager()
     overlay_window = None
     capture_thread = None
 

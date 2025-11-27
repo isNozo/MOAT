@@ -1,45 +1,54 @@
-from abc import ABC, abstractmethod
+from ollama import chat
+from PySide6.QtCore import QRunnable, QThreadPool
 
-class Translator(ABC):
-    @abstractmethod
-    def translate(self, text: str) -> str:
-        pass
+class TranslateWorkerManager():
+    def __init__(self):
+        self.pool = QThreadPool()
+        self.prev_worker = None
+    
+    def translate(self, word, full_text, on_progress):
+        if self.prev_worker:
+            self.prev_worker.is_cancelled = True
+        
+        worker = TranslateWorker(word, full_text, on_progress)
+        self.prev_worker = worker
+        self.pool.start(worker)        
 
-def create_translator(kind: str) -> Translator:
-    if kind == "ollama":
-        return OllamaTranslator()
-    else:
-        raise ValueError(f"Unknown translator type: {kind}")
+class TranslateWorker(QRunnable):
+    def __init__(self, word, full_text, on_progress):
+        super().__init__()
+        self.word = word
+        self.full_text = full_text
+        self.on_progress = on_progress
+        self.is_cancelled = False
 
-class OllamaTranslator(Translator):
-    def __init__(self, model: str = "gemma3:12b"):
-        import ollama
-
-        self.ollama = ollama
-        self.model = model
-
-        self.prompt_template = (
+    def run(self):
+        prompt_template = (
             "[{word}]という単語の意味を文脈から推論し、次の形式で回答してください。形式以外の文字は出力しないでください。\n"
             "[{word}]: 単語の意味\n\n"
             "ちなみに、[{word}]は文章全体の中で以下のように使われています。\n"
             "{full_text}"
         )
-
-    def translate(self, word: str, full_text: str) -> str:
-        prompt = self.prompt_template.format(
-            word=word,
-            full_text=full_text
+        prompt = prompt_template.format(
+            word=self.word,
+            full_text=self.full_text
         )
 
-        response = self.ollama.chat(
-            model=self.model,
+        response = chat(
+            model="gemma3:12b",
             messages=[
                 {"role": "system", "content": "あなたは翻訳エンジンです。"},
                 {"role": "user", "content": prompt},
             ],
             options={
                 "temperature": 0.0,
-            }
+            },
+            stream=True
         )
 
-        return response["message"]["content"].strip()
+        result = ""
+        for chunk in response:
+            if self.is_cancelled:
+                break
+            result += chunk["message"]["content"]
+            self.on_progress(result)

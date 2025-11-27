@@ -4,12 +4,12 @@ from PySide6.QtCore import QPoint, Qt, Signal, Slot, QRunnable, QTimer, QObject,
 import ctypes
 
 class PopupOverlay(QWidget):
-    def __init__(self, target_title, get_text_lines, process_text, get_window_rect):
+    def __init__(self, target_title, get_text_lines, translate, get_window_rect):
         super().__init__()
 
         self.target_title = target_title
         self.get_text_lines = get_text_lines
-        self.process_text = process_text
+        self.translate = translate
         self.get_window_rect = get_window_rect
 
         self.is_debug_mode = False
@@ -20,10 +20,6 @@ class PopupOverlay(QWidget):
 
         self.in_any_rect = False
         self.current_textbox = None
-
-        # Current task ID (for thread management)
-        self.current_task_id = 0
-        self.pool = QThreadPool()
 
         # Set a frameless, always-on-top transparent window
         self.setWindowFlags(
@@ -127,23 +123,12 @@ class PopupOverlay(QWidget):
         # Show loading popup immediately
         self.updatePopup(rect, "Loading...")
 
-        # Update task ID (ignore old results)
-        self.current_task_id += 1
-
         # Start a separate thread for processing
-        worker = TextProcessWorker(word, full_text, self.current_task_id, self.process_text)
-        worker.signals.finished.connect(self.onWorkerFinished)
-        self.pool.start(worker)
+        self.translate(word, full_text, self.onTranslationProgress)
 
         self._pending_rect = rect  # Store rect for updating after processing
 
-    # Called when the thread finishes
-    @Slot(str, int)
-    def onWorkerFinished(self, result_text, task_id):
-        # Ignore old task results
-        if task_id != self.current_task_id:
-            return
-        
+    def onTranslationProgress(self, result_text):
         # If not in any rectangle, do nothing
         if self.in_any_rect is False:
             return
@@ -184,19 +169,3 @@ class PopupOverlay(QWidget):
                 for textbox in line:
                     rect = QRect(textbox.x/dpr, textbox.y/dpr, textbox.w/dpr, textbox.h/dpr)
                     painter.fillRect(rect, QColor(255, 0, 0, 100))
-
-class TextProcessWorker(QRunnable):
-    def __init__(self, word, full_text, task_id, process_text):
-        super().__init__()
-        self.word = word
-        self.full_text = full_text
-        self.task_id = task_id
-        self.process_text = process_text
-        self.signals = WorkerSignals()
-
-    def run(self):
-        result = self.process_text(self.word, self.full_text)
-        self.signals.finished.emit(result, self.task_id)
-
-class WorkerSignals(QObject):
-    finished = Signal(str, int)
