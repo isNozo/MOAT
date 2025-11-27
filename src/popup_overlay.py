@@ -76,6 +76,9 @@ class PopupOverlay(QWidget):
                 word = textbox.text
                 word_rect = QRect(textbox.x/dpr, textbox.y/dpr, textbox.w/dpr, textbox.h/dpr)
 
+                if(word == " "):
+                    continue
+
                 if word_rect.contains(reletive_pos):
                     if not self.in_any_rect:
                         self.in_any_rect = True
@@ -134,7 +137,7 @@ class PopupOverlay(QWidget):
             return
 
         # Update popup with the result
-        self.updatePopup(self._pending_rect, result_text)
+        self.updatePopup(self._pending_rect, result_text.strip())
 
     def updatePopup(self, rect, text):
         self.popup.setText(text)
