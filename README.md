@@ -1,4 +1,6 @@
-# Installation
+# MOAT - Mouse OCR & AI Translator
+
+## Installation
 Requirements:
 - Ollama 0.12.11
 
