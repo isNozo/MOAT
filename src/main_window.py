@@ -1,83 +1,103 @@
-from PySide6.QtWidgets import (QMainWindow, QComboBox, QPushButton, QWidget, 
-                             QVBoxLayout, QHBoxLayout, QStyle)
-from PySide6.QtCore import QSize
+from PySide6.QtWidgets import QWidget, QComboBox, QPushButton, QVBoxLayout
+from PySide6.QtCore import Signal
 import logging
 
-class MainWindow(QMainWindow):
-    def __init__(self, get_window_titles):
+logger = logging.getLogger(__name__)
+
+class MainWindow(QWidget):
+    def __init__(self, get_window_titles, on_start, on_stop):
         super().__init__()        
-        self.logger = logging.getLogger(__name__)
-        self.logger.setLevel(logging.DEBUG)
+
         self.get_window_titles = get_window_titles
+        self.on_start = on_start
+        self.on_stop = on_stop
 
-        self.setWindowTitle("Live Overlay Translator")
+        self.init_ui()
 
-        # Create combo box and refresh button layout
-        combo_layout = QHBoxLayout()
-        
-        # Get available window titles and list them in the combobox
-        window_titles = get_window_titles()
-        self.selected_window = window_titles[0] if window_titles else None
-        self.combobox = QComboBox()
-        self.combobox.setSizeAdjustPolicy(QComboBox.AdjustToMinimumContentsLengthWithIcon)
-        self.combobox.setMinimumContentsLength(28)
-        self.combobox.addItems(window_titles)
-        self.combobox.currentTextChanged.connect(self.update_text)
-        
-        # Create refresh button
-        self.refresh_button = QPushButton()
-        self.refresh_button.setIcon(self.style().standardIcon(QStyle.SP_BrowserReload))
-        self.refresh_button.setFixedSize(QSize(24, 24))
-        self.refresh_button.clicked.connect(self.refresh_window_list)
-        
-        # Add widgets to horizontal layout
-        combo_layout.addWidget(self.combobox)
-        combo_layout.addWidget(self.refresh_button)
-        
-        # Create main layout
+        logger.debug("initialized")
+
+    def init_ui(self):
+        self.setWindowTitle("MOAT - Mouse OCR & AI Translator")
+        self.setFixedSize(240, 120)
+
+        # Window selector
+        self.window_selector = WindowSelector(self.get_window_titles)
+
+        # Play/Stop toggle button
+        self.toggle_btn = TogglePlayButton()
+        self.toggle_btn.play.connect(lambda: self.on_start(self.window_selector.currentText()))
+        self.toggle_btn.play.connect(lambda: self.window_selector.setEnabled(False))
+        self.toggle_btn.stop.connect(self.on_stop)
+        self.toggle_btn.stop.connect(lambda: self.window_selector.setEnabled(True))
+
         layout = QVBoxLayout()
-        layout.addLayout(combo_layout)
-        
-        # Create buttons for opening and closing the sub window
-        self.start_button = QPushButton("Start Capture")
-        self.stop_button = QPushButton("Stop Capture")
-        
-        layout.addWidget(self.start_button)
-        layout.addWidget(self.stop_button)
-        
-        container = QWidget()
-        container.setLayout(layout)
-        self.setCentralWidget(container)
-
-        self.logger.debug("initialized")
-
-    def update_text(self, text):
-        self.logger.debug("selected window changed to: %s", text)
-        self.selected_window = text
-
-    def add_start_listener(self, listener):
-        self.start_button.clicked.connect(listener)
-    
-    def add_stop_listener(self, listener):
-        self.stop_button.clicked.connect(listener)
+        layout.addWidget(self.window_selector)
+        layout.addWidget(self.toggle_btn)
+        self.setLayout(layout)
 
     def closeEvent(self, event):
-        self.logger.debug("closing")
-        self.stop_button.click()
+        logger.debug("closing")
+        self.on_stop()
         super().closeEvent(event)
 
+
+class WindowSelector(QComboBox):
+    def __init__(self, get_window_titles):
+        super().__init__()
+        self.get_window_titles = get_window_titles
+
+    def showPopup(self):
+        self.refresh_window_list()
+        super().showPopup()
+
     def refresh_window_list(self):
-        """Refresh the window titles in the combobox"""
-        current = self.combobox.currentText()
+        selected_window = self.currentText()
         window_titles = self.get_window_titles()
-        
-        self.combobox.clear()
-        self.combobox.addItems(window_titles)
+        self.clear()
+        self.addItems(window_titles)
         
         # Try to restore the previous selection if it still exists
-        index = self.combobox.findText(current)
+        index = self.findText(selected_window)
         if index >= 0:
-            self.combobox.setCurrentIndex(index)
+            self.setCurrentIndex(index)
+
+
+class TogglePlayButton(QPushButton):
+    play = Signal()
+    stop = Signal()
+
+    def __init__(self):
+        super().__init__()
+
+        self.button_style = """
+            QPushButton {{
+                font-size: 40px;
+                height: 80px;
+                background-color: {0};
+                color: white;
+                border-radius: 10px;
+            }}
+            QPushButton:pressed {{
+                background-color: {1};
+            }}
+        """
+
+        self.setCheckable(True)
+        self.set_state_play()
+        self.toggled.connect(self.update_state)
+
+    def update_state(self, checked):
+        if checked:
+            self.set_state_stop()
+            self.play.emit()
         else:
-            # If previous selection is gone, select the first item
-            self.selected_window = window_titles[0] if window_titles else None
+            self.set_state_play()
+            self.stop.emit()
+
+    def set_state_play(self):
+        self.setText("▶")
+        self.setStyleSheet(self.button_style.format("#3CB371", "#2E8B57"))
+
+    def set_state_stop(self):
+        self.setText("■")
+        self.setStyleSheet(self.button_style.format("#CD5C5C", "#B24A4A"))

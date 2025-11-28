@@ -15,19 +15,16 @@ if __name__ == "__main__":
     overlay_window = None
     capture_thread = None
 
-    main_window = MainWindow(get_window_titles)
-    main_window.show()
-
     def get_text_rects():
         return ocr.results
 
-    def start():
+    def start(window_title):
         global overlay_window
         global capture_thread
 
         if overlay_window is None:
             overlay_window = PopupOverlay(
-                main_window.selected_window,
+                window_title,
                 get_text_rects,
                 translator.translate,
                 get_window_rect
@@ -35,7 +32,7 @@ if __name__ == "__main__":
             overlay_window.show()
             
             capture_thread = CaptureThread(
-                main_window.selected_window,
+                window_title,
                 ocr.recognize_text
                 )
             capture_thread.start()
@@ -50,7 +47,7 @@ if __name__ == "__main__":
             overlay_window.close()
             overlay_window = None
 
-    main_window.add_start_listener(start)
-    main_window.add_stop_listener(stop)
+    main_window = MainWindow(get_window_titles, start, stop)
+    main_window.show()
 
     sys.exit(app.exec())
