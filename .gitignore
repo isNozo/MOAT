@@ -2,3 +2,6 @@
 __pycache__/
 *.png
 output/
+build/
+dist/
+*.spec
