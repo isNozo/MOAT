@@ -14,6 +14,9 @@ MOATは以下の特徴を持つOCR翻訳ツールです。
 ## ステップ１
 ツール本体を以下からダウンロードしてください。
 
+https://github.com/isNozo/MOAT/releases/tag/v0.2
+- MOAT-v0.2.zip
+
 ## ステップ２
 翻訳にローカルLLMを利用します。以下のサイトからollamaをインストールしてください。
 
