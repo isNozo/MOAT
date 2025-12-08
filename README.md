@@ -12,9 +12,7 @@ MOATは以下の特徴を持つOCR翻訳ツールです。
 
 # 使用方法
 ## ステップ１
-ツール本体を以下からダウンロードしてください。(OCRライブラリがでかいので展開すると5GBくらいになります)
-
-https://drive.google.com/file/d/1JyMUxZPpJj_GVX6AT1lYLH9n7JDR3F87/view?usp=sharing
+ツール本体を以下からダウンロードしてください。
 
 ## ステップ２
 翻訳にローカルLLMを利用します。以下のサイトからollamaをインストールしてください。
@@ -25,17 +23,23 @@ https://ollama.com/
 
 ollamaを実行した状態でMOATを実行してください。ドロップダウンからキャプチャするウィンドウを選択し、再生ボタンでキャプチャ開始します。
 
+※最初の実行だけMOATを管理者権限で実行する必要あり（Win11に標準インストールされているSnippingToolのOCRライブラリをコピーするため）
+
 # 開発者向け環境構築方法
 
-Run the following commands:
+以下のパッケージをインストールしてください。
 ```
-> pip install paddlepaddle-gpu==3.0.0 -i https://www.paddlepaddle.org.cn/packages/stable/cu126/
-> pip install Pyside6 pywin32 windows_capture setuptools paddleocr==3.3.1 ollama
+> pip install Pyside6 pywin32 windows_capture oneocr ollama pyinstaller
 ```
 
-Note: The paddlepaddle-gpu version must match your CUDA version. Please refer to the [official installation guide](https://www.paddlepaddle.org.cn/en/install/quick?docurl=/documentation/docs/en/develop/install/pip/windows-pip_en.html).
+ollamaを実行した状態で以下を実行してください。
 
 ```
-> ollama run gemma3:12b
-> python .\src\main.py
+> python.exe .\src\main.py
+```
+
+以下のコマンドでdistディレクトリに配布用の実行ファイルが生成されます。
+
+```
+> pyinstaller.exe --clean .\src\main.py
 ```
