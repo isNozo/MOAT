@@ -5,11 +5,10 @@ import cv2
 if __name__ == "__main__":
     ocr = TextRecognizer()
     
-    # load image.png as ndarray (BGR) for PaddleOCR
-    image = cv2.imread("./image.png", cv2.IMREAD_COLOR)
+    img = cv2.imread("./image.png")
 
     start_time = time.time()
-    lines = ocr.recognize_text(image)
+    lines = ocr.recognize_text(img)
     end_time = time.time()
     
     for line in lines:

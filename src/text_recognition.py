@@ -1,4 +1,7 @@
-from paddleocr import PaddleOCR, TextDetection
+import os
+import glob
+import shutil
+import cv2
 from dataclasses import dataclass
 
 @dataclass
@@ -11,51 +14,75 @@ class TextBox:
 
 class TextRecognizer:
     def __init__(self):
+        self.ensure_oneocr_files()
+        import oneocr
         self.results = []
+        self.ocr = oneocr.OcrEngine()
 
-        self.ocr = PaddleOCR(
-            text_detection_model_name="PP-OCRv5_mobile_det",
-            text_recognition_model_name="PP-OCRv5_mobile_rec",
-            use_doc_orientation_classify=False,
-            use_doc_unwarping=False,
-            use_textline_orientation=False,
-            text_det_limit_side_len=1920,
-            )
-        self.det = TextDetection(
-            model_name="PP-OCRv4_mobile_det",
-            limit_side_len=1920,
-            )
-
-    def zip_with(func, *iterables):
-        return [func(*args) for args in zip(*iterables)]
-
-    def toTextBox(text, box):
-        return TextBox(
-            text=text,
-            x=box[0],
-            y=box[1],
-            w=box[2] - box[0],
-            h=box[3] - box[1]
-            )
-
-    def recognize_text(self, frame_buffer):
+    def recognize_text(self, image):
         try:
-            result = self.ocr.predict(frame_buffer, return_word_box=True)
-
-            if not result:
+            is_success, eimg = cv2.imencode(".png", image)
+            res = self.ocr.recognize_cv2(eimg)
+            if not res:
                 return None
             else:
-                wordss = result[0]["text_word"]
-                boxess = result[0]["text_word_boxes"]
-
                 lines = []
-                for texts, boxes in zip(wordss, boxess):
-                    line = TextRecognizer.zip_with(TextRecognizer.toTextBox, texts, boxes)
-                    lines.append(line)
-
+                for line in res["lines"]:
+                    words = []
+                    for word in line["words"]:
+                        txt = word["text"]
+                        pos = word["bounding_rect"]
+                        pos_x_min = min(pos["x1"], pos["x2"], pos["x3"], pos["x4"])
+                        pos_x_max = max(pos["x1"], pos["x2"], pos["x3"], pos["x4"])
+                        pos_y_min = min(pos["y1"], pos["y2"], pos["y3"], pos["y4"])
+                        pos_y_max = max(pos["y1"], pos["y2"], pos["y3"], pos["y4"])
+                        words.append(TextBox(
+                            text=txt,
+                            x=int(pos_x_min),
+                            y=int(pos_y_min),
+                            w=int(pos_x_max-pos_x_min),
+                            h=int(pos_y_max-pos_y_min)
+                            ))
+                    lines.append(words)
                 self.results = lines
+                return lines
 
-                return self.results
         except Exception as e:
             print(f"Failed to process image: {e}")
             return None
+
+    def find_snipping_tool_dir(self):
+        base_dir = r"C:\Program Files\WindowsApps"
+        pattern = os.path.join(base_dir, "Microsoft.ScreenSketch_*")
+        for folder in glob.glob(pattern):
+            snip_dir = os.path.join(folder, "SnippingTool")
+            if os.path.isdir(snip_dir):
+                return snip_dir
+        return None
+
+    def ensure_oneocr_files(self):
+        target_dir = os.path.join(os.path.expanduser('~'), '.config', 'oneocr')
+        os.makedirs(target_dir, exist_ok=True)
+
+        src_dir = self.find_snipping_tool_dir()
+        if not src_dir:
+            print("SnippingTool folder not found.")
+            return False
+
+        files = ["oneocr.dll", "oneocr.onemodel", "onnxruntime.dll"]
+
+        copied = False
+
+        for fname in files:
+            src = os.path.join(src_dir, fname)
+            dst = os.path.join(target_dir, fname)
+
+            if os.path.exists(dst):
+                print(f"Exists: {dst}")
+                continue
+
+            shutil.copy2(src, dst)
+            print(f"Copied: {src} -> {dst}")
+            copied = True
+
+        return copied

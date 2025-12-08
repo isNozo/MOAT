@@ -2,7 +2,6 @@ from PySide6.QtCore import QThread
 from windows_capture import WindowsCapture, Frame, InternalCaptureControl
 import time
 import numpy as np
-import cv2
 
 class CaptureThread(QThread):
     def __init__(self, window_name, process_frame):
@@ -27,11 +26,7 @@ class CaptureThread(QThread):
                 self.frame_count = 0
                 self.last_time = current_time
 
-            # Convert frame_buffer to numpy array for PaddleOCR
-            frame_array = np.array(frame.frame_buffer)
-            # Convert BGRA to BGR (PaddleOCR expects BGR format)
-            frame_bgr = cv2.cvtColor(frame_array, cv2.COLOR_BGRA2BGR)
-            process_frame(frame_bgr)
+            process_frame(np.array(frame.frame_buffer))
 
         @self.capture.event
         def on_closed():
